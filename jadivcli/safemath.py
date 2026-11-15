@@ -91,11 +91,16 @@ def _eval(node: ast.AST) -> float:
         if isinstance(node.op, ast.Pow):
             _check_pow_bounds(left, right)
         try:
-            return op(left, right)
+            result = op(left, right)
         except ZeroDivisionError as exc:
             raise CalcError("division by zero") from exc
         except (ValueError, OverflowError) as exc:
             raise CalcError(str(exc)) from exc
+        # ``**`` on a negative base with a fractional exponent returns a
+        # complex value instead of raising. This calculator only returns reals.
+        if isinstance(result, complex):
+            raise CalcError("result is not a real number")
+        return result
     if isinstance(node, ast.UnaryOp):
         op = _UNARY_OPS.get(type(node.op))
         if op is None:
@@ -125,7 +130,8 @@ def _eval(node: ast.AST) -> float:
 def evaluate(expression: str) -> float:
     """Evaluate an arithmetic ``expression`` and return its numeric result.
 
-    Raises :class:`CalcError` for empty, malformed, or disallowed expressions.
+    Raises :class:`CalcError` for empty, malformed, or disallowed expressions,
+    and when a power is not a real number.
     """
     expression = expression.strip()
     if not expression:
